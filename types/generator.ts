@@ -4,6 +4,7 @@ export interface GenerateRequest {
   mode: GenerationMode;
   rawInput: string;
   projectTitle?: string;
+  tone?: 'comprehensive' | 'concise';
 }
 
 export interface CommitSuggestion {

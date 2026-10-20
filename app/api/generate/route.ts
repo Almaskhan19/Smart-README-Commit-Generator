@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
     // Validate Request Body
     const body = (await req.json()) as GenerateRequest;
-    const { mode, rawInput, projectTitle } = body;
+    const { mode, rawInput, projectTitle, tone = 'comprehensive' } = body;
 
     if (!rawInput || rawInput.trim().length < 10) {
       return NextResponse.json(
@@ -95,11 +95,14 @@ export async function POST(req: NextRequest) {
 
     // Configure Prompt & Schema based on Mode
     const isReadme = mode === 'readme';
+    const isComprehensive = tone === 'comprehensive';
+    const title = projectTitle?.trim() || 'Modern Software Project';
+
     const prompt = isReadme
-      ? `Generate a production-grade GitHub README.md for a project titled "${
-          projectTitle || 'Modern Software Project'
-        }". Analyze the following input (package.json, dependencies, or notes) and include an Overview, Key Features, Tech Stack table, and Local Quickstart instructions:\n\n${rawInput}`
-      : `Analyze the following git diff or developer notes and break them down into 2 to 4 clean, atomic Conventional Commits:\n\n${rawInput}`;
+      ? isComprehensive
+        ? `Generate an ultra-professional, comprehensive GitHub README.md for a project titled "${title}". Analyze the following input (package.json, dependencies, or notes) and structure it with: SVG shields/badges, High-level Overview, Core Features matrix, Tech Stack table, Quickstart (prerequisites, installation, environment variables, run commands), and Contributing guidelines:\n\n${rawInput}`
+        : `Generate a sleek, minimalist, high-impact GitHub README.md for a project titled "${title}". Analyze the following input and include: Badges, Core Summary, Key Features bullet points, and Quickstart run commands:\n\n${rawInput}`
+      : `Analyze the following git diff or developer notes and synthesize 2 to 5 clean, standard-compliant Conventional Commits categorized into feat, fix, docs, refactor, perf, or chore with precise scopes and body explanations:\n\n${rawInput}`;
 
     const primaryModel = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
     const fallbackModel = 'gemini-3.5-flash-lite';
