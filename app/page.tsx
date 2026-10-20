@@ -27,8 +27,10 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [result, setResult] = useState<GenerateResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const loadSample = () => {
+    setError(null);
     if (mode === 'readme') {
       setProjectTitle('Nexus Analytics Engine');
       setRawInput(SAMPLE_PACKAGE_JSON);
@@ -40,40 +42,32 @@ export default function HomePage() {
   const handleGenerate = async () => {
     if (!rawInput.trim()) return;
     setIsLoading(true);
+    setError(null);
 
-    // Day 1 Mock Response (We will replace this with a real fetch('/api/generate') on Day 2)
-    setTimeout(() => {
-      if (mode === 'readme') {
-        setResult({
-          mode: 'readme',
-          readme: {
-            markdown: `# ${projectTitle || 'Project Title'}\n\n## Overview\nGenerated cleanly from your input configuration.\n\n## Tech Stack\n- Next.js (App Router)\n- TypeScript\n- Tailwind CSS`,
-            suggestedTags: ['nextjs', 'typescript', 'ai-tools'],
-          },
-        });
-      } else {
-        setResult({
-          mode: 'commit',
-          commits: [
-            {
-              type: 'feat',
-              scope: 'auth',
-              subject: 'add rate limiting middleware to login endpoint',
-              fullHeader: 'feat(auth): add rate limiting middleware to login endpoint',
-              bodyExplanation: 'Restricts login attempts to 5 per minute to prevent brute-force attacks.',
-            },
-            {
-              type: 'fix',
-              scope: 'auth',
-              subject: 'return 400 status on empty password payload',
-              fullHeader: 'fix(auth): return 400 status on empty password payload',
-              bodyExplanation: 'Prevents unhandled 500 server crashes when credentials are omitted.',
-            },
-          ],
-        });
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          rawInput,
+          projectTitle: mode === 'readme' ? projectTitle : undefined,
+        }),
+      });
+
+      const data: GenerateResponse = await res.json();
+
+      if (!res.ok || data.error) {
+        setError(data.error || 'Failed to generate output.');
+        return;
       }
+
+      setResult(data);
+    } catch {
+      setError('Network error: Could not reach the generation server.');
+    } finally {
       setIsLoading(false);
-    }, 600);
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -99,7 +93,7 @@ export default function HomePage() {
         {/* Mode Switcher */}
         <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-800">
           <button
-            onClick={() => { setMode('readme'); setResult(null); }}
+            onClick={() => { setMode('readme'); setResult(null); setError(null); }}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition cursor-pointer ${
               mode === 'readme'
                 ? 'bg-indigo-600 text-white shadow'
@@ -110,7 +104,7 @@ export default function HomePage() {
             README Generator
           </button>
           <button
-            onClick={() => { setMode('commit'); setResult(null); }}
+            onClick={() => { setMode('commit'); setResult(null); setError(null); }}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition cursor-pointer ${
               mode === 'commit'
                 ? 'bg-indigo-600 text-white shadow'
@@ -159,6 +153,12 @@ export default function HomePage() {
             }
             className="flex-1 min-h-[320px] w-full rounded-lg bg-slate-950 border border-slate-800 p-4 font-mono text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 resize-none"
           />
+
+          {error && (
+            <div className="mt-3 p-3 rounded-lg bg-red-950/60 border border-red-800 text-red-300 text-xs">
+              {error}
+            </div>
+          )}
 
           <button
             onClick={handleGenerate}
