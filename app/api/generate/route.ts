@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
         }". Analyze the following input (package.json, dependencies, or notes) and include an Overview, Key Features, Tech Stack table, and Local Quickstart instructions:\n\n${rawInput}`
       : `Analyze the following git diff or developer notes and break them down into 2 to 4 clean, atomic Conventional Commits:\n\n${rawInput}`;
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 
     const response = await ai.models.generateContent({
       model: modelName,
