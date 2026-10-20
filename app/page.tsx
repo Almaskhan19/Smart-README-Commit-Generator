@@ -21,7 +21,6 @@ import {
   CheckCircle2,
   ArrowRight,
   Sliders,
-  Layers,
   Wand2
 } from 'lucide-react';
 
