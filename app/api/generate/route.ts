@@ -101,17 +101,46 @@ export async function POST(req: NextRequest) {
         }". Analyze the following input (package.json, dependencies, or notes) and include an Overview, Key Features, Tech Stack table, and Local Quickstart instructions:\n\n${rawInput}`
       : `Analyze the following git diff or developer notes and break them down into 2 to 4 clean, atomic Conventional Commits:\n\n${rawInput}`;
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+    const primaryModel = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+    const fallbackModel = 'gemini-3.5-flash-lite';
 
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: isReadme ? readmeSchema : commitSchema,
-        temperature: 0.3,
-      },
-    });
+    const generateWithFallback = async () => {
+      const candidates = [primaryModel, fallbackModel];
+      let lastError: unknown;
+
+      for (const model of candidates) {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            return await ai.models.generateContent({
+              model,
+              contents: prompt,
+              config: {
+                responseMimeType: 'application/json',
+                responseSchema: isReadme ? readmeSchema : commitSchema,
+                temperature: 0.3,
+              },
+            });
+          } catch (err: unknown) {
+            lastError = err;
+            const errMsg = err instanceof Error ? err.message : String(err);
+            const isRetryable =
+              errMsg.includes('503') ||
+              errMsg.includes('UNAVAILABLE') ||
+              errMsg.includes('high demand') ||
+              errMsg.includes('Resource has been exhausted');
+
+            if (isRetryable && attempt === 0) {
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+              continue;
+            }
+            break; // Try next model candidate if first model is unavailable
+          }
+        }
+      }
+      throw lastError;
+    };
+
+    const response = await generateWithFallback();
 
     const rawJson = response.text;
     if (!rawJson) {
